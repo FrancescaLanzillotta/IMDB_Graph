@@ -443,6 +443,30 @@ def actor_graph(graph, movie_dict):
         return actor_graph, max_pair, max_weight
 
 
+def subgraph_by_year(graph, year_cutoff):
+
+    nodes_list = []
+    movie_count = 0
+    for node, att_dict in graph.nodes.items():
+        if att_dict["type"] == "actor":
+            nodes_list.append(node)
+        elif att_dict["type"] == "movie":
+            if att_dict["year"] is None or att_dict["year"] <= year_cutoff:
+                nodes_list.append(node)
+                movie_count += 1
+
+    subgraph = nx.Graph(imdb_graph.subgraph(nodes_list))
+
+    subgraph.remove_nodes_from(list(nx.isolates(subgraph)))
+
+    print(f"{year_cutoff} subgraph: \n"
+          f"Nodes: \t {len(subgraph.nodes)} \n"
+          f"Edges: \t {len(subgraph.edges)} \n"
+          f"Actors:  {len(subgraph.nodes) - movie_count} \n"
+          f"Movies:  {movie_count} \n")
+    return subgraph
+
+
 if __name__ == '__main__':
     file_directory = "imdb-actors-actresses-movies.tsv"
 
@@ -450,39 +474,17 @@ if __name__ == '__main__':
 
     imdb_graph, act_dict, movie_dict = actor_movie_graph(file_directory)
 
-    print(prolific_actor_by_year(imdb_graph, act_dict, year_range))
-    # year_cutoff = 2000
-    #
-    # nodes_list = []
-    # act_count = 0
-    # movie_count = 0
-    # for node, att_dict in imdb_graph.nodes.items():
-    #     if att_dict["type"] == "actor":
-    #         nodes_list.append(node)
-    #         act_count += 1
-    #     elif att_dict["type"] == "movie":
-    #         if att_dict["year"] is None or att_dict["year"] <= year_cutoff:
-    #             nodes_list.append(node)
-    #             movie_count += 1
-    # sub = nx.Graph(imdb_graph.subgraph(nodes_list))
-    #
-    # sub.remove_nodes_from(list(nx.isolates(sub)))
-    #
-    # print(f"{year_cutoff} subgraph: \n"
-    #       f"Nodes: \t {len(sub.nodes)} \n"
-    #       f"Edges: \t {len(sub.edges)} \n"
-    #       f"Actors:  {len(sub.nodes) - movie_count} \n"
-    #       f"Movies:  {movie_count} \n")
-    #
-    # max = 0
-    # max_act = None
-    # for node in sub.nodes:
-    #     if sub.nodes[node]["type"] == "actor":
-    #         if len(sub.adj[node]) > max:
-    #             max = len(sub.adj[node])
-    #             max_act = node
-    #
-    # print(f"{year_cutoff} MAX: {max_act} with {max} movies")
+    sub = subgraph_by_year(imdb_graph, 1930)
+
+    max = 0
+    max_act = None
+    for node in sub.nodes:
+        if sub.nodes[node]["type"] == "actor":
+            if len(sub.adj[node]) > max:
+                max = len(sub.adj[node])
+                max_act = node
+
+    print(f"{1930} MAX: {max_act} with {max} movies")
 
 
 
