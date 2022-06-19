@@ -93,12 +93,14 @@ def prolific_actor_by_year(graph, actor_dict, year_range):
             movie_year = graph.nodes[movie_node]["year"]
             if movie_year is not None:  # skip movies with no year
                 for year in year_range:  # count movies considering increasing year range
-                    if movie_year < year:
+                    if movie_year <= year:
                         movie_counter[year] = movie_counter[year] + 1
+
         for year in year_range:  # check max considering increasing year range
             if movie_counter[year] > max_by_year[year][0]:
                 max_by_year[year] = (movie_counter[year], actor_node)
-        return max_by_year
+
+    return max_by_year
 
 
 ### Question III: Which is the pair of movies that share the largest number of actors?
@@ -446,9 +448,41 @@ if __name__ == '__main__':
 
     year_range = {1930, 1940, 1950, 1960, 1970, 1980, 1990, 2000, 2010, 2020}
 
-    actor_movie_graph(file_directory)
+    imdb_graph, act_dict, movie_dict = actor_movie_graph(file_directory)
 
-
+    print(prolific_actor_by_year(imdb_graph, act_dict, year_range))
+    # year_cutoff = 2000
+    #
+    # nodes_list = []
+    # act_count = 0
+    # movie_count = 0
+    # for node, att_dict in imdb_graph.nodes.items():
+    #     if att_dict["type"] == "actor":
+    #         nodes_list.append(node)
+    #         act_count += 1
+    #     elif att_dict["type"] == "movie":
+    #         if att_dict["year"] is None or att_dict["year"] <= year_cutoff:
+    #             nodes_list.append(node)
+    #             movie_count += 1
+    # sub = nx.Graph(imdb_graph.subgraph(nodes_list))
+    #
+    # sub.remove_nodes_from(list(nx.isolates(sub)))
+    #
+    # print(f"{year_cutoff} subgraph: \n"
+    #       f"Nodes: \t {len(sub.nodes)} \n"
+    #       f"Edges: \t {len(sub.edges)} \n"
+    #       f"Actors:  {len(sub.nodes) - movie_count} \n"
+    #       f"Movies:  {movie_count} \n")
+    #
+    # max = 0
+    # max_act = None
+    # for node in sub.nodes:
+    #     if sub.nodes[node]["type"] == "actor":
+    #         if len(sub.adj[node]) > max:
+    #             max = len(sub.adj[node])
+    #             max_act = node
+    #
+    # print(f"{year_cutoff} MAX: {max_act} with {max} movies")
 
 
 
