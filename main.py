@@ -405,6 +405,85 @@ def max_shared_cast(graph, movie_dict):
     # end = timeit.default_timer()
     # print(f"Elapsed time: {end - start} \n")
 
+def bfs_tree_ecc(graph, source):
+    """
+    Classic BFS implementation that takes into account the movie year and discards any movie released after
+    specified year.
+
+    :param graph:
+        A networkx graph
+    :param source:
+        Starting node
+    :return: defaultdict(list), int
+        The BFS tree starting from input source node, the layer dictionary and the source node's
+    eccentricity.
+
+    """
+    discarded = set()
+    gray_nodes = {}
+    layers = defaultdict(list)
+    current_dis = 0
+    q = [source]
+    gray_nodes[source] = current_dis
+    layers[current_dis] = [source]
+    while len(q) > 0:
+        current_node = q.pop(0)
+        current_dis = gray_nodes[current_node]
+        for neighbour in list(graph.adj[current_node]):
+            if neighbour not in gray_nodes and neighbour not in discarded:  # same as checking if node is "white"
+                print(f"Found new node {neighbour} at distance {current_dis + 1}")
+                q.append(neighbour)
+                gray_nodes[neighbour] = current_dis + 1
+                layers[current_dis + 1].append(neighbour)
+
+    ecc = current_dis
+    print(f"Eccentricity of {source}: {ecc}")
+    return layers, ecc
+
+def bounded_diameter(graph):
+    """
+
+    :param graph: nx.Graph()
+         A networkx graph
+    :param source: nx.node_id
+        Starting node
+    :param year: int
+    :return: int
+        diameter value
+    """
+    start = timeit.default_timer()
+
+    # find highest degree node in the graph
+    max_connections = 0
+    source = None
+    for node in sub.nodes:
+        if len(graph.adj[node]) > max_connections:
+            max_connections = len(graph.adj[node])
+            source = node
+    print(f"Source: {source} with {max_connections} edges")
+
+    layers, ecc = bfs_tree_ecc(graph, source)
+    M = 0
+    for i in range(ecc, 0, -1):
+        print(f"Layer-{i}")
+        bfs_count = 1
+        F_i = layers[i]
+        B_i = 0
+        for node in F_i:
+            ecc_i = max(nx.single_source_shortest_path_length(graph, node).values())  # eccentricity
+            print(ecc_i)
+            bfs_count += 1
+            if ecc_i > B_i:
+                B_i = ecc_i
+        if M > 2 * (i - 1):
+            print(f"Number of BFS: {bfs_count}")
+            break
+        elif M < B_i:
+            M = B_i
+
+    end = timeit.default_timer()
+    print(f"Elapsed time: {end - start} \n")
+    return M
 
 ### 4. Build the actor graph, whose nodes are only actors and two actors are connected if they did a movie together.
 ### Which is the pair of actors who collaborated the most among themselves?
@@ -473,22 +552,12 @@ if __name__ == '__main__':
     year_range = {1930, 1940, 1950, 1960, 1970, 1980, 1990, 2000, 2010, 2020}
 
     imdb_graph, act_dict, movie_dict = actor_movie_graph(file_directory)
+    year_cutoff = 1990
+    sub = subgraph_by_year(imdb_graph, year_cutoff)
 
-    sub = subgraph_by_year(imdb_graph, 1930)
+    # largest_cc = nx.Graph(sub.subgraph(max(nx.connected_components(sub), key=len)))
+    # print(largest_cc)
 
-    max = 0
-    max_act = None
-    for node in sub.nodes:
-        if sub.nodes[node]["type"] == "actor":
-            if len(sub.adj[node]) > max:
-                max = len(sub.adj[node])
-                max_act = node
-
-    print(f"{1930} MAX: {max_act} with {max} movies")
-
-
-
-
-
-
+    d = bounded_diameter(sub)
+    print(f"Diameter ({year_cutoff}): {d}")
 
