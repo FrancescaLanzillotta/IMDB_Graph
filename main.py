@@ -1,5 +1,4 @@
 import itertools
-import timeit
 from collections import defaultdict
 import networkx as nx
 import pprint
@@ -45,11 +44,6 @@ def actor_movie_graph(file_directory):
 
             imdb_graph.add_edge(actor_id, movie_id)  # add new edge to the graph
 
-    print("Actors: \n")
-    pprint.pprint(len(actor_dict.keys()))
-    print("\n Movies: \n")
-    pprint.pprint(len(movie_dict.keys()))
-    print(imdb_graph)
     return imdb_graph, actor_dict, movie_dict
 
 
@@ -148,37 +142,35 @@ def bounded_diameter(graph):
             source = node
 
     layers, ecc = bfs_tree_ecc(graph, source)
-    lb = 0
+    i = ecc
+    lb = ecc
+    ub = 2 * ecc
     bfs_count = 1
-    for i in range(ecc, 0, -1):
+
+    while ub > lb:
+
+        # compute B_i(source)
         F_i = layers[i]
         B_i = 0
+        print(f"Layer-{i}")
         for node in F_i:
-            ecc_i = max(nx.single_source_shortest_path_length(graph, node).values()) # eccentricity
-            # _, ecc_i = bfs_tree_ecc(graph, node)  # eccentricity
+            ecc_i = max(nx.single_source_shortest_path_length(graph, node).values())  # eccentricity
             bfs_count += 1
+            print(ecc_i)
             if ecc_i > B_i:
                 B_i = ecc_i
-        if lb > 2 * (i - 1):  # lower bound > upper bound
-            print(f"Number of BFS: {bfs_count}")
-            break
-        elif lb < B_i:
-            lb = B_i
 
+        if max(lb, B_i) > 2 * (i - 1):   # lower bound > upper bound
+            print(f"Number of BFS: {bfs_count}")
+            return max(lb, B_i)
+        else:
+            lb = max(lb, B_i)
+            ub = 2 * (i - 1)
+        i -= 1
     return lb
 
 
 def actor_graph(graph, movie_dict, act_dict):
-
-    """
-    Builds a weighted graph, where the weight of an edge represents how many times two actors have worked together.
-    :param graph:
-        A networkx graph
-    :param movie_dict:
-    :param act_dict:
-    :return: graph
-        actors' graph
-    """
 
     actors_graph = nx.Graph()
 
@@ -196,11 +188,11 @@ def actor_graph(graph, movie_dict, act_dict):
     return actors_graph
 
 
-def subgraph_by_year(graph, year_cutoff):
+def subgraph_by_year(graph, year_cutoff):   # create subgraph with movies released up to specified year
 
     if year_cutoff == 2020:
         subgraph = graph
-    else:
+    else:  # create list of nodes that respect parameters
         nodes_list = []
         for node, att_dict in graph.nodes.items():
             if att_dict["type"] == "actor":
@@ -210,7 +202,7 @@ def subgraph_by_year(graph, year_cutoff):
                     nodes_list.append(node)
 
         subgraph = nx.Graph(graph.subgraph(nodes_list))
-
+        # remove nodes with no neighbors
         subgraph.remove_nodes_from(list(nx.isolates(subgraph)))
 
     return subgraph
@@ -221,20 +213,21 @@ if __name__ == '__main__':
     ### Create Graph ###
 
     file_directory = "imdb-actors-actresses-movies.tsv"
-    imdb_graph, act_dict, movie_dict = actor_movie_graph(file_directory)
 
     year_range = {1930, 1940, 1950, 1960, 1970, 1980, 1990, 2000, 2010, 2020}
+    imdb_graph, act_dict, movie_dict = actor_movie_graph(file_directory)
+
 
     ### Question C:
 
-    # print(" Which is the actor who did more movies, considering only the movies up to year x with x in"
-    #       "{1930,1940,1950,1960,1970,1980,1990,2000,2010,2020}?")
-    # pprint.pprint(prolific_actor_by_year(imdb_graph, act_dict, year_range))
+    print(" Which is the actor who did more movies, considering only the movies up to year x with x in"
+          "{1930,1940,1950,1960,1970,1980,1990,2000,2010,2020}?")
+    pprint.pprint(prolific_actor_by_year(imdb_graph, act_dict, year_range))
 
     ### Question 1:
 
     print("Considering only the movies up to year x with x in {1930,1940,1950,1960,1970,1980,1990,2000,2010,2020} "
-          "and restricting to the largest connected component of the graph, \n compute exactly the diameter of G")
+          "and restricting to the largest connected component of the graph, \ncompute exactly the diameter of G")
     for year in year_range:
         print(year)
         subgraph = subgraph_by_year(imdb_graph, year)
@@ -243,26 +236,27 @@ if __name__ == '__main__':
 
     ### Question III:
 
-    # print("Which is the pair of movies that share the largest number of actors?")
-    # movie_pair, max_shared_cast = max_shared_cast(imdb_graph, movie_dict)
-    # print(f"The movies {movie_pair} share {max_shared_cast} actors")
+    print("Which is the pair of movies that share the largest number of actors?")
+    movie_pair, max_shared_cast = max_shared_cast(imdb_graph, movie_dict)
+    print(f"The movies {movie_pair} share {max_shared_cast} actors")
 
     ### Question 4:
 
-    # print("Build the actor graph, whose nodes are only actors and two actors are connected if they did a movie together")
-    # act_graph = actor_graph(imdb_graph, movie_dict, act_dict)
-    #
-    # print("Which is the pair of actors who collaborated the most among themselves?")
-    #
-    # # Find the heaviest edge in the graph
-    # max_weight = 0
-    # pair = None
-    # for u, v, att in g.edges(data=True):
-    #     if att["weight"] > max_weight:
-    #         max_weight = att["weight"]
-    #         pair = (u, v)
-    #
-    # print(f"The pair {pair} worked together {max_weight} times")
+    print("Build the actor graph, whose nodes are only actors and two actors are connected if they did a movie together")
+
+    act_graph = actor_graph(imdb_graph, movie_dict, act_dict)
+
+    print("Which is the pair of actors who collaborated the most among themselves?")
+
+    # Find the heaviest edge in the graph
+    max_weight = 0
+    pair = None
+    for u, v, attributes in act_graph.edges(data=True):
+        if attributes["weight"] > max_weight:
+            max_weight = attributes["weight"]
+            pair = (u, v)
+
+    print(f"The pair {pair} worked together {max_weight} times")
 
 
 
