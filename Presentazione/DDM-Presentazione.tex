@@ -1,0 +1,432 @@
+\newcommand{\e} {\`e }
+\newcommand{\E} {\`E }
+\newcommand{\aee} {\'{e} }
+\newcommand{\aea} {\`{a} }
+\newcommand{\ai} {\`{\i} }
+\newcommand{\ao} {\`{o} }
+\newcommand{\au} {\`{u} }
+\newcommand{\bit} {\begin{itemize} }
+\newcommand{\eit} {\end{itemize} }
+
+
+
+%\documentclass[handout]{beamer}
+\documentclass{beamer}
+\usepackage{pgfpages}
+\usepackage{verbatim}
+\usepackage{numprint}
+\usepackage[11pt]{moresize}
+\usepackage{multirow}
+%\pgfpagesuselayout{2 on 1}[a4paper, border shrink=5mm]
+
+\usepackage{helvet}
+\renewcommand{\familydefault}{\sfdefault}
+
+\usepackage{listings}
+\usepackage{xcolor}
+
+\definecolor{UNIFIblue}{rgb}{0, 0.298, 0.494	}  
+
+\usecolortheme[named=UNIFIblue]{structure}
+
+%\usetheme{PaloAlto}
+\usetheme{Pittsburgh}
+%\usetheme{Berkeley}
+
+
+\definecolor{White}{rgb}{1.0,1.0,1.0}
+\definecolor{Blue}{rgb}{0.,0.,1.}
+\definecolor{Pink}{rgb}{1.,0.75,0.8}
+\definecolor{LRed}{rgb}{1.0,0.2,0.2}
+\definecolor{Red}{rgb}{1.0,0.0,0.0}
+
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{aliceblue}{rgb}{0.94, 0.97, 1.0}
+%Code listing style named "mystyle"
+\lstdefinestyle{mystyle}{
+  mathescape,
+  language=Python,
+  backgroundcolor=\color{aliceblue}, 
+  commentstyle=\color{codegreen},
+  keywordstyle=\color{UNIFIblue},
+  numberstyle=\tiny\color{codegray},
+  stringstyle=\color{codegreen},
+  basicstyle=\scriptsize\ttfamily,
+  breakatwhitespace=false,         
+  breaklines=true,                 
+  captionpos=b,                    
+  keepspaces=true,                 
+  numbers=left,                    
+  numbersep=5pt,                  
+  showspaces=false,                
+  showstringspaces=false,
+  showtabs=false,                  
+  tabsize=2
+}
+
+%"mystyle" code listing set
+\lstset{style=mystyle}
+\beamertemplatenavigationsymbolsempty
+
+\setbeamertemplate{background}
+{\includegraphics[width=\paperwidth,height=\paperheight,keepaspectratio]{Immagine1}}
+ 
+
+\begin{document}
+\title{\textcolor{White}{APAD}}  
+\date{\textcolor{White}{Relatore: Francesca Lanzillotta}}
+ 
+
+ 
+\frame{\titlepage} 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\setbeamertemplate{background}
+{\includegraphics[width=\paperwidth,height=\paperheight,keepaspectratio]{Immagine2}}
+
+
+
+
+
+ 
+ 
+ \frame{\frametitle{Indice}\tableofcontents} 
+ 
+ 
+ \setbeamercolor{date in head/foot}{fg=White, bg=UNIFIblue}
+ \setbeamertemplate{footline}
+ {
+ 	\begin{beamercolorbox}[ht=1ex,sep=1ex, center]{date in head/foot}
+ 		\insertshorttitle \ \ \insertshortauthor \hspace{2cm}  \insertsection  \ \ \ \insertsubsection \hfill\insertframenumber%/\inserttotalframenumber
+ 	\end{beamercolorbox}
+ 	
+ }
+ 
+ 
+ 
+ 
+ \section{Building The Graph}
+ \begin{frame}[fragile]{Goal}
+ From the given \verb|.tsv| file, build a \emph{Bipartite Unweighted Graph} where nodes are actors/actresses and movies. \\
+ \pause \ \\ There is an edge between an actor/actress node A and movie node M if A participated in M.
+ \end{frame}
+ \begin{frame}{Nodes}
+ Each node in the Graph contains specific attributes:
+ \begin{itemize}
+ \pause
+     \item \textbf{Id}: to uniquely identify actors and movies within the graph
+\pause
+     \item \textbf{Name}: entity name extracted from file
+\pause
+     \item \textbf{Type}: actor or movie
+\pause
+     \item \textbf{Year}\ (\emph{only movie nodes}): indicates the release year
+ \end{itemize}
+     
+ \end{frame}
+ 
+\begin{frame}[fragile]{Supporting Structures}
+The algorithm uses two dictionaries as supporting structures: \\
+\begin{itemize}
+\pause 
+    \item Actor dictionary 
+    \begin{verbatim}
+        {actor_name : actor_id}
+    \end{verbatim}
+    \item Movie dictionary
+    \begin{verbatim}
+        {movie_name : movie_id}
+    \end{verbatim}
+\end{itemize}
+\end{frame}
+
+ \begin{frame}[fragile]{Code}
+ \begin{lstlisting}    
+ with open("imdb-actors-actresses-movies.tsv") as file:
+        for line in file:
+            
+            line = line.split("\t") 
+            # line contains array [actor, movie] 
+            
+            if line[0] not in actor_dict.keys(): 
+                # create actor node
+                ...
+            else:    # retrieve actor's id
+                actor_id = actor_dict[line[0]]
+
+            if line[1] not in movie_dict.keys():  
+                # create movie node
+                ...
+            else:    # retrieve movie's id
+                movie_id = movie_dict[line[1]]
+                
+            imdb_graph.add_edge(actor_id, movie_id)
+ \end{lstlisting}
+ \end{frame}
+ \begin{frame}{Resulting Graph}
+ The algorithm proposed created a graph with: \\
+ \begin{itemize}
+     \item \numprint{3110737} nodes \\
+     \pause
+     \begin{itemize}
+         \item \numprint{2364796} actor nodes
+         \item \numprint{745941} movie nodes
+     \end{itemize}
+\pause
+     \item \numprint{8103960} edges
+ \end{itemize}
+     
+ \end{frame}
+
+\section{Most prolific actors}
+\begin{frame}{Goal}
+Find the actor who did more movies, considering only the movies up to year x with
+x in \{1930,1940,1950,1960,1970,1980,1990,2000,2010,2020\}.
+\end{frame}
+\begin{frame}[fragile]{Algorithm}
+The algorithm examines every actor one by one and only once. \\
+For each one, it counts the movies made considering an increasing year range, and stores the results in a dictionary
+\begin{verbatim}
+    {year: number of movies}
+\end{verbatim}
+The cumulative results are stored in a different dictionary
+\begin{verbatim}
+    {year: (number of movies, actor_id)}
+\end{verbatim}
+\end{frame}
+\begin{frame}[fragile]{Code}
+\begin{lstlisting}
+for actor_node in actor_dict.values():
+  actor_counter = {}
+    
+  # initialize actor counter dict
+  for year in year_range:  
+    actor_counter[year] = 0
+    
+  # check every movie the actor participated in
+  for movie_node in graph.adj[actor_node]: 
+    movie_year = graph.nodes[movie_node]["year"]
+    # skip movies with no year
+    if movie_year is not None:  
+      for year in year_range:
+        if movie_year <= year:
+          actor_counter[year] +=  1
+
+  # find max comparing all dictionaries entries
+  for year in year_range: 
+    if actor_counter[year] > total_max[year][0]:
+      total_max[year] = (actor_counter[year], actor_node)
+\end{lstlisting}
+\end{frame}
+\begin{frame}{Results}
+\centering
+\begin{tabular}{|l|c|c|}
+    \hline
+     Year & Actor & Movies \\
+     \hline \hline
+     2020 & Byron, Tom (I) & 1882 \\
+     2010 & Byron, Tom (I) & 1824 \\
+     2000 & Byron, Tom (I) & 1610 \\ 
+     1990 & Blanc, Mel & 1024 \\
+     1980 & Blanc, Mel & 989 \\ 
+     1970 & Blanc, Mel & 946 \\ 
+     1960 & Onoe, Matsunosuke & 925 \\
+     1950 & Onoe, Matsunosuke & 925 \\
+     1940 & Onoe, Matsunosuke & 925 \\
+     1930 & Onoe, Matsunosuke & 925 \\
+     \hline
+\end{tabular}
+\end{frame}
+
+\section{Diameter}
+\begin{frame}{Goal}
+Restricting to the largest connected component of the graph, compute exactly the diameter of the graph, considering only the movies up to year x with x in \{1930,1940,1950,1960,1970,1980,1990,2000,2010,2020\}
+\end{frame}
+\begin{frame}{Algorithm}
+The algortithm implemented performs Breadth First Searches on the nodes in a specific order inferred by some properties of the BFS-trees, while at the same time: \\ \ \\
+\begin{itemize}
+    \item refining a lower bound (i.e. the maximum eccentricity found)
+    \item upper bounding the remaining nodes' eccentricities
+\end{itemize}
+\ \\ \ \\
+The algorithm stops when the lower bound is bigger than the upper bound.
+\end{frame}
+\begin{frame}{Algorithm}
+\begin{itemize}
+    \item Constructs a BFS-Tree starting from a high degree node \emph{source}
+    \item Considering the BFS-Tree levels one at a time in a bottom-up fashion, compute the eccentricities of all nodes in the level
+    \item If in a generic level $i$, the maximum eccentricity found $M$ is greater then $2*(i-1)$, the algorithm can stop.
+\end{itemize}
+\ \\ \ \\
+It can be proved that all the eccentricities of the nodes in the upper layers of the tree are bounded by $max \{M,\ 2 \cdot(i-1)\}$
+\end{frame}
+\begin{frame}[fragile]{Code}
+\begin{lstlisting}
+layers, ecc = bfs_layers_ecc(graph, source)
+i = ecc
+lb = ecc
+ub = 2 * ecc
+while ub > lb:
+    # compute B_i(source)
+    F_i = layers[i]
+    B_i = 0
+    for node in F_i:
+        _, ecc_i = bfs_layers_ecc(graph, source)
+        if ecc_i > B_i:
+            B_i = ecc_i
+
+    if max(lb, B_i) > 2 * (i - 1): # lb > ub
+        return max(lb, B_i)
+    else:
+        lb = max(lb, B_i)
+        ub = 2 * (i - 1)
+    i -= 1
+return lb
+\end{lstlisting}
+\end{frame}
+\begin{frame}[fragile]{Code}
+\begin{lstlisting}
+year_range = {1930, 1940, 1950, 1960, 1970, 1980, 1990, 2000, 2010, 2020}
+
+for year in year_range:
+
+    # create subgraph with movies released up to year
+    subgraph = subgraph_by_year(imdb_graph, year)
+    
+    d = bounded_diameter(subgraph)
+    
+\end{lstlisting}
+\end{frame}
+\begin{frame}{Results}
+\centering
+\begin{tabular}{|l|c|c|}
+    \hline
+     Year & Diameter & BFS Performed\\
+     \hline \hline
+     2020 & 32 & 106\\
+     2010 & 30 & 159\\
+     2000 & 28 & 221\\ 
+     1990 & 30 & 30\\
+     1980 & 25 & 50\\ 
+     1970 & 25 & 52\\ 
+     1960 & 34 & 12\\
+     1950 & 38 & 84\\
+     1940 & 36 & 135 \\
+     1930 & 32 & 1616\\
+     \hline
+\end{tabular}
+\end{frame}
+\section{Largest Shared Cast}
+\begin{frame}{Goal}
+Which is the pair of movies that share the largest number of actors?
+\end{frame}
+\begin{frame}{Algorithm}
+The algorithm checks every movie pair combination possible and for each pair checks the number of common elements in their cast. \\
+This last operation can be calculated as a set intersection. \\ \ \\
+\pause
+The total number of possible movie pair combinations is 
+\begin{equation*}
+    \binom{n}{2} = \ \frac{n!}{2\cdot(n-2)!} \ = \ \frac{n \ (n-1)}{2}
+\end{equation*}
+where n is the number of movies. \\ \ \\
+The total number of comparisons can be much lower.
+\end{frame}
+\begin{frame}{Algorithm}
+The current maximum provides a lower bound for the sought value
+\pause
+\begin{itemize}
+    \item all the movies with a cast smaller than the current lower bound can be skipped
+\end{itemize}
+\end{frame}
+\begin{frame}[fragile]{Code}
+\begin{lstlisting}[basicstyle=\ssmall\ttfamily,]
+# check movies in order
+for i in range(len(movie_list) - 1):
+
+  if movie_list[i] not in discarded:
+  
+    cast = set(imdb_graph.adj[movie_list[i]])
+    
+    if len(cast) > max_shared_cast:  
+        
+        # check the remaining movies 
+        for j in range(i+1, len(movie_list)):
+             
+          if movie_list[j] not in discarded:
+            other_cast = set(imdb_graph.adj[movie_list[j]])
+            if len(other_cast) > max_shared_cast:  
+            
+              shared_cast = len(cast.intersection(other_cast))
+              
+              if shared_cast > max_shared_cast:
+                max_shared_cast = shared_cast
+                movie_pair = (movie_list[i], movie_list[j])
+                
+            else: # if j-th movie's cast is too small
+              discarded.add(movie_list[j])
+              
+    else: # if i-th movie's cast is too small
+        discarded.add(movie_list[i])
+\end{lstlisting}
+\end{frame}
+\begin{frame}{Results}
+\centering
+\begin{tabular}{ c|c } 
+Movie & Shared Cast \\
+\hline \hline
+Kingdom Hearts II (2005) (VG) & \multirow{2}{*}{194} \\ 
+Kingdom Hearts II: Final Mix+ (2007) (VG) \\
+\end{tabular}
+\end{frame}
+\section{Building The Actors' Graph}
+\begin{frame}{Goal}
+Build actor graph, whose nodes are only actors and two actors are connected if they did a movie together. \\ \ \\
+Find the actors who collaborated the most among themselves.
+\end{frame}
+\begin{frame}{Algorithm}
+The algorithm proposed creates a weighted graph where the weight of an edge represents how many times two actors have worked together. 
+\\ \ \\
+The edge with highest weight connects the actors who worked together the most.
+    
+\end{frame}
+\begin{frame}[fragile]{Algorithm}
+To build the graph, the algorithm relies on the previous actor-movie graph. \\ For each movie and its cast, consider all possible combinations of pairs of actors:
+\begin{itemize}
+    \item if actors' nodes already share an edge, increase its weight
+    \item if not, create an edge with unitary weight
+\end{itemize}
+\pause
+\end{frame}
+
+\begin{frame}[fragile]{Code}
+\begin{lstlisting}
+# create a node for every actor
+actors_graph.add_nodes_from(act_dict.values) 
+
+# iterate over movies in the graph
+for movie_id in movie_dict.values():  
+  cast = list(graph.adj[movie_id])
+  
+  if len(cast) > 1:
+    # consider all possible combinations
+    for pair in itertools.combinations(cast, 2):
+    
+      if actors_graph.has_edge(pair[0], pair[1]):  
+        # increase edge weight
+        actors_graph.edges[pair[0], pair[1]]["weight"] += 1 
+        
+      else: 
+        # add edge with unitary weight
+        actors_graph.add_edge(pair[0], pair[1], weight=1)  
+
+return actors_graph
+\end{lstlisting}
+\end{frame}
+\begin{frame}{Results}
+The computer incurred in a memory error before creating the graph.
+\end{frame}
+\end{document}
