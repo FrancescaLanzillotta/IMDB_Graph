@@ -3,6 +3,7 @@ from collections import defaultdict
 import networkx as nx
 import pprint
 import re
+from timeit import default_timer
 
 
 def actor_movie_graph(file_directory):
@@ -56,20 +57,20 @@ def prolific_actor_by_year(graph, actor_dict, year_range):
 
     for actor_node in actor_dict.values():
 
-        actor_movie_counter = {}  # create a dictionary to store how many movies each actor_node has filmed
+        actor_counter = {}  # create a dictionary to store how many movies each actor_node has filmed
         for year in year_range:  # considering only the ones made up to year x
-            actor_movie_counter[year] = 0
+            actor_counter[year] = 0
 
         for movie_node in graph.adj[actor_node]:  # check every movie the actor participated in
             movie_year = graph.nodes[movie_node]["year"]
             if movie_year is not None:  # skip movies with no year
                 for year in year_range:  # count movies considering increasing year range
                     if movie_year <= year:
-                        actor_movie_counter[year] += 1
+                        actor_counter[year] += 1
 
         for year in year_range:  # check max considering increasing year range
-            if actor_movie_counter[year] > total_max[year][0]:
-                total_max[year] = (actor_movie_counter[year], actor_node)
+            if actor_counter[year] > total_max[year][0]:
+                total_max[year] = (actor_counter[year], actor_node)
 
     return total_max
 
@@ -81,6 +82,25 @@ def max_shared_cast(graph, movie_dict):
     movie_list = list(movie_dict.values())  # list of all the movies' id
     discarded = set()  # contains all movies that don't need to be checked again
 
+    # for movie, other_movie in itertools.combinations(movie_dict.values(), 2):
+    #     if movie not in discarded and other_movie not in discarded:
+    #         cast = set(graph.adj[movie])
+    #         other_cast = set(graph.adj[other_movie])
+    #         if len(cast) > max_shared_cast:
+    #             if len(other_cast) > max_shared_cast:
+    #
+    #                 shared_cast = len(cast.intersection(other_cast))
+    #
+    #                 if shared_cast > max_shared_cast:
+    #                     max_shared_cast = shared_cast
+    #                     movie_pair = movie, other_movie
+    #             else:
+    #                 discarded.add(other_movie)
+    #         else:
+    #             discarded.add(movie)
+    #
+    # return movie_pair, max_shared_cast
+
     for i in range(len(movie_list) - 1):  # check every movie in the list but the last one
 
         if movie_list[i] not in discarded:
@@ -88,7 +108,8 @@ def max_shared_cast(graph, movie_dict):
 
             if len(cast) > max_shared_cast:
                 for j in range(i + 1, len(movie_list)):  # check every other movie in the rest of the list
-
+                    if i == len(movie_list) - 2:
+                        print(f"i: {i} \t j: {j}")
                     if movie_list[j] not in discarded:
                         other_cast = set(graph.adj[movie_list[j]])
 
@@ -108,12 +129,13 @@ def max_shared_cast(graph, movie_dict):
     return movie_pair, max_shared_cast
 
 
-def bfs_tree_ecc(graph, source):
+def bfs_layers_ecc(graph, source):
 
     gray_nodes = {}  # dictionary to store for each node the distance from source
     layers = defaultdict(list)  # each entry contains a list of nodes at distance key
-    current_dis = 0
+
     # initialize dictionaries with source values
+    current_dis = 0
     q = [source]
     gray_nodes[source] = current_dis
     layers[current_dis] = [source]
@@ -133,35 +155,32 @@ def bfs_tree_ecc(graph, source):
 
 def bounded_diameter(graph):
 
+    # restrict graph to largest connected component
+    largest_cc = max(nx.connected_components(graph), key=len)
+    largest_cc = graph.subgraph(largest_cc).copy()
+
     # find the highest degree node in the graph
     max_connections = 0
     source = None
-    for node in graph.nodes:
-        if len(graph.adj[node]) > max_connections:
-            max_connections = len(graph.adj[node])
+    for node in largest_cc.nodes:
+        if len(largest_cc.adj[node]) > max_connections:
+            max_connections = len(largest_cc.adj[node])
             source = node
 
-    layers, ecc = bfs_tree_ecc(graph, source)
+    layers, ecc = bfs_layers_ecc(largest_cc, source)
     i = ecc
     lb = ecc
     ub = 2 * ecc
-    bfs_count = 1
-
     while ub > lb:
-
         # compute B_i(source)
         F_i = layers[i]
         B_i = 0
-        print(f"Layer-{i}")
         for node in F_i:
-            ecc_i = max(nx.single_source_shortest_path_length(graph, node).values())  # eccentricity
-            bfs_count += 1
-            print(ecc_i)
+            ecc_i = max(nx.single_source_shortest_path_length(largest_cc, node).values())  # eccentricity
             if ecc_i > B_i:
                 B_i = ecc_i
 
         if max(lb, B_i) > 2 * (i - 1):   # lower bound > upper bound
-            print(f"Number of BFS: {bfs_count}")
             return max(lb, B_i)
         else:
             lb = max(lb, B_i)
@@ -174,7 +193,7 @@ def actor_graph(graph, movie_dict, act_dict):
 
     actors_graph = nx.Graph()
 
-    actors_graph.add_nodes_from(act_dict.values)  # create a node for every actor
+    actors_graph.add_nodes_from(act_dict.values())  # create a node for every actor
 
     for movie_id in movie_dict.values():  # iterate over movies in the graph
         cast = list(graph.adj[movie_id])
@@ -220,9 +239,9 @@ if __name__ == '__main__':
 
     ### Question C:
 
-    print(" Which is the actor who did more movies, considering only the movies up to year x with x in"
-          "{1930,1940,1950,1960,1970,1980,1990,2000,2010,2020}?")
-    pprint.pprint(prolific_actor_by_year(imdb_graph, act_dict, year_range))
+    # print(" Which is the actor who did more movies, considering only the movies up to year x with x in"
+    #       "{1930,1940,1950,1960,1970,1980,1990,2000,2010,2020}?")
+    # pprint.pprint(prolific_actor_by_year(imdb_graph, act_dict, year_range))
 
     ### Question 1:
 
@@ -236,27 +255,27 @@ if __name__ == '__main__':
 
     ### Question III:
 
-    print("Which is the pair of movies that share the largest number of actors?")
-    movie_pair, max_shared_cast = max_shared_cast(imdb_graph, movie_dict)
-    print(f"The movies {movie_pair} share {max_shared_cast} actors")
-
+    # start = default_timer()
+    # print("Which is the pair of movies that share the largest number of actors?")
+    # movie_pair, max_shared_cast = max_shared_cast(imdb_graph, movie_dict)
+    # print(f"The movies {movie_pair} share {max_shared_cast} actors")
+    # end = default_timer()
+    # print(f"Elapsed time: {end - start}")
     ### Question 4:
 
-    print("Build the actor graph, whose nodes are only actors and two actors are connected if they did a movie together")
-
-    act_graph = actor_graph(imdb_graph, movie_dict, act_dict)
-
-    print("Which is the pair of actors who collaborated the most among themselves?")
-
-    # Find the heaviest edge in the graph
-    max_weight = 0
-    pair = None
-    for u, v, attributes in act_graph.edges(data=True):
-        if attributes["weight"] > max_weight:
-            max_weight = attributes["weight"]
-            pair = (u, v)
-
-    print(f"The pair {pair} worked together {max_weight} times")
-
-
+    # print("Build the actor graph, whose nodes are only actors and two actors are connected if they did a movie together")
+    #
+    # act_graph = actor_graph(imdb_graph, movie_dict, act_dict)
+    #
+    # print("Which is the pair of actors who collaborated the most among themselves?")
+    #
+    # # Find the heaviest edge in the graph
+    # max_weight = 0
+    # pair = None
+    # for u, v, attributes in act_graph.edges(data=True):
+    #     if attributes["weight"] > max_weight:
+    #         max_weight = attributes["weight"]
+    #         pair = (u, v)
+    #
+    # print(f"The pair {pair} worked together {max_weight} times")
 
