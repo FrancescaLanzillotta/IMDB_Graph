@@ -1,0 +1,261 @@
+import itertools
+from collections import defaultdict
+import networkx as nx
+import pprint
+import re
+
+
+def actor_movie_graph(file_directory):
+
+    actor_count = 0
+    movie_count = 0
+    actor_dict = {}
+    movie_dict = {}
+    imdb_graph = nx.Graph()
+
+    with open(file_directory) as file:
+
+        for line in file:
+            line = line.split("\t")  # l contains array [actor, movie] created from line
+
+            if line[0] not in actor_dict.keys():  # if actor hasn't been considered before
+                actor_id = "a-" + str(actor_count)  # create actor id
+                actor_dict[line[0]] = actor_id  # add new entry in dict with actor's name as key and number-id as value
+                imdb_graph.add_node(actor_id, name=line[0], type="actor")  # create new node in graph
+                actor_count += 1  # update counter
+
+            else:  # actor already added to graph
+                actor_id = actor_dict[line[0]]  # retrieve actor's id
+
+            if line[1] not in movie_dict.keys():  # if movie hasn't been considered before
+                movie_id = "m-" + str(movie_count)  # create movie id
+                movie_dict[line[1]] = movie_id  # add new entry in dict with movie's name as key and number-id as value
+                movie_year = re.findall(r"^.*?\((\d{4})[^\d]*\).*$",
+                                        line[1])  # extract 4-digit number between parentheses
+                if movie_year:  # check if regex match is not empty
+                    movie_year = int(movie_year[0])  # convert string to int
+                else:
+                    movie_year = None  # not every movie has a year
+                imdb_graph.add_node(movie_id, name=line[1], type="movie",
+                                    year=movie_year)  # create new node in graph
+                movie_count += 1  # update counter
+            else:  # movie already added to graph
+                movie_id = movie_dict[line[1]]  # retrieve movie's id
+
+            imdb_graph.add_edge(actor_id, movie_id)  # add new edge to the graph
+
+    return imdb_graph, actor_dict, movie_dict
+
+
+def prolific_actor_by_year(graph, actor_dict, year_range):
+
+    # Results are stored in a dictionary with year as key and tuples (number of movies, actor id) as values
+    total_max = {}
+    for year in year_range:
+        total_max[year] = (0, "")
+
+    for actor_node in actor_dict.values():
+
+        actor_counter = {}  # create a dictionary to store how many movies each actor_node has filmed
+        for year in year_range:  # considering only the ones made up to year x
+            actor_counter[year] = 0
+
+        for movie_node in graph.adj[actor_node]:  # check every movie the actor participated in
+            movie_year = graph.nodes[movie_node]["year"]
+            if movie_year is not None:  # skip movies with no year
+                for year in year_range:  # count movies considering increasing year range
+                    if movie_year <= year:
+                        actor_counter[year] += 1
+
+        for year in year_range:  # check max considering increasing year range
+            if actor_counter[year] > total_max[year][0]:
+                total_max[year] = (actor_counter[year], actor_node)
+
+    return total_max
+
+
+def bfs_layers_ecc(graph, source):
+
+    gray_nodes = {}  # dictionary to store for each node the distance from source
+    layers = defaultdict(list)  # each entry contains a list of nodes at distance key
+
+    # initialize dictionaries with source values
+    current_dis = 0
+    q = [source]
+    gray_nodes[source] = current_dis
+    layers[current_dis] = [source]
+    # classic BFS implementation
+    while len(q) > 0:
+        current_node = q.pop(0)
+        current_dis = gray_nodes[current_node]
+        for neighbour in list(graph.adj[current_node]):
+            if neighbour not in gray_nodes:
+                q.append(neighbour)
+                gray_nodes[neighbour] = current_dis + 1
+                layers[current_dis + 1].append(neighbour)
+
+    ecc = current_dis
+    return layers, ecc
+
+
+def bounded_diameter(graph):
+
+    # restrict graph to largest connected component
+    largest_cc = max(nx.connected_components(graph), key=len)
+    largest_cc = graph.subgraph(largest_cc).copy()
+
+    # find the highest degree node in the graph
+    max_connections = 0
+    source = None
+    for node in largest_cc.nodes:
+        if len(largest_cc.adj[node]) > max_connections:
+            max_connections = len(largest_cc.adj[node])
+            source = node
+
+    layers, ecc = bfs_layers_ecc(largest_cc, source)
+    i = ecc
+    lb = ecc
+    ub = 2 * ecc
+    while ub > lb:
+        # compute B_i(source)
+        F_i = layers[i]
+        B_i = 0
+        for node in F_i:
+            ecc_i = max(nx.single_source_shortest_path_length(largest_cc, node).values())  # eccentricity
+            if ecc_i > B_i:
+                B_i = ecc_i
+
+        if max(lb, B_i) > 2 * (i - 1):   # lower bound > upper bound
+            return max(lb, B_i)
+        else:
+            lb = max(lb, B_i)
+            ub = 2 * (i - 1)
+
+        i -= 1
+
+    return lb
+
+
+def max_shared_cast(graph, movie_dict):
+
+    max_shared_cast = 0
+    movie_pair = ()
+    movie_list = list(movie_dict.values())  # list of all the movies' id
+    discarded = set()  # contains all movies that don't need to be checked again
+
+    for i in range(len(movie_list) - 1):  # check every movie in the list but the last one
+
+        if movie_list[i] not in discarded:
+            cast = set(graph.adj[movie_list[i]])
+
+            if len(cast) > max_shared_cast:
+                for j in range(i + 1, len(movie_list)):  # check every other movie in the rest of the list
+
+                    if movie_list[j] not in discarded:
+                        other_cast = set(graph.adj[movie_list[j]])
+
+                        if len(other_cast) > max_shared_cast:
+                            shared_cast = len(cast.intersection(other_cast))
+
+                            if shared_cast > max_shared_cast:
+                                max_shared_cast = shared_cast
+                                movie_pair = (movie_list[i], movie_list[j])
+
+                        else:  # discard  if j-th movie's cast is too small
+                            discarded.add(movie_list[j])
+
+            else:    # discard if i-th movie's cast is too small
+                discarded.add(movie_list[i])
+
+    return movie_pair, max_shared_cast
+
+
+def actor_graph(graph, movie_dict, act_dict):
+
+    actors_graph = nx.Graph()
+
+    actors_graph.add_nodes_from(act_dict.values())  # create a node for every actor
+
+    for movie_id in movie_dict.values():  # iterate over movies in the graph
+        cast = list(graph.adj[movie_id])
+        if len(cast) > 1:
+            for pair in itertools.combinations(cast, 2):  # consider all possible combinations of pairs of actors
+                if actors_graph.has_edge(pair[0], pair[1]):
+                    actors_graph.edges[pair[0], pair[1]]["weight"] += 1  # increase edge weight
+                else:
+                    actors_graph.add_edge(pair[0], pair[1], weight=1)  # add edge with unitary weight
+
+    return actors_graph
+
+
+def subgraph_by_year(graph, year_cutoff):   # create subgraph with movies released up to specified year
+
+    if year_cutoff == 2020:
+        subgraph = graph
+    else:  # create list of nodes that respect parameters
+        nodes_list = []
+        for node, att_dict in graph.nodes.items():
+            if att_dict["type"] == "actor":
+                nodes_list.append(node)
+            elif att_dict["type"] == "movie":
+                if att_dict["year"] is None or att_dict["year"] <= year_cutoff:
+                    nodes_list.append(node)
+
+        subgraph = nx.Graph(graph.subgraph(nodes_list))
+        # remove nodes with no neighbors
+        subgraph.remove_nodes_from(list(nx.isolates(subgraph)))
+
+    return subgraph
+
+
+if __name__ == '__main__':
+
+    ### Create Graph ###
+
+    file_directory = "imdb-actors-actresses-movies.tsv"
+
+    year_range = {1930, 1940, 1950, 1960, 1970, 1980, 1990, 2000, 2010, 2020}
+    imdb_graph, act_dict, movie_dict = actor_movie_graph(file_directory)
+
+
+    ### Question C ###
+
+    print(" Which is the actor who did more movies, considering only the movies up to year x with x in"
+          "{1930,1940,1950,1960,1970,1980,1990,2000,2010,2020}?")
+    pprint.pprint(prolific_actor_by_year(imdb_graph, act_dict, year_range))
+
+    ### Question 1 ###
+
+    print("Considering only the movies up to year x with x in {1930,1940,1950,1960,1970,1980,1990,2000,2010,2020} "
+          "and restricting to the largest connected component of the graph, \ncompute exactly the diameter of G")
+    for year in year_range:
+        print(year)
+        subgraph = subgraph_by_year(imdb_graph, year)
+        d = bounded_diameter(subgraph)
+        print(f"Diameter ({year}): {d}")
+
+    ### Question III ###
+
+    print("Which is the pair of movies that share the largest number of actors?")
+    movie_pair, max_shared_cast = max_shared_cast(imdb_graph, movie_dict)
+    print(f"The movies {movie_pair} share {max_shared_cast} actors")
+
+    ### Question 4 ###
+
+    print("Build the actor graph, whose nodes are only actors and "
+          "two actors are connected if they did a movie together")
+
+    act_graph = actor_graph(imdb_graph, movie_dict, act_dict)
+
+    print("Which is the pair of actors who collaborated the most among themselves?")
+
+    # Find the heaviest edge in the graph
+    max_weight = 0
+    pair = None
+    for u, v, attributes in act_graph.edges(data=True):
+        if attributes["weight"] > max_weight:
+            max_weight = attributes["weight"]
+            pair = (u, v)
+
+    print(f"The pair {pair} worked together the most ({max_weight} times)")
+
